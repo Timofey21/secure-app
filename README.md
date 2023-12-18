@@ -1,1 +1,1 @@
-# secure-app
+# flask-secure-app
