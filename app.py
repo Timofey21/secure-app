@@ -1,11 +1,15 @@
 import sqlite3
+from pydoc import html
 
 from flask import Flask, render_template, render_template_string, request, redirect, session, abort
+from flask_bcrypt import Bcrypt
 from database import init_db
 
 app = Flask(__name__)
 
-app.secret_key = 'BAD_SECRET_KEY'
+bcrypt = Bcrypt(app)
+
+app.secret_key = 'aebeiz7eiyi?tooj5sheijai0dize2Xeicai0ais6xaef5pai3'
 
 
 @app.before_request
@@ -23,23 +27,26 @@ def login():
 
         connection = sqlite3.connect('demo.db')
         cursor = connection.cursor()
-        cursor.execute("SELECT * FROM users WHERE username = '{}' AND password = '{}'".format(username, password))
+        cursor.execute('SELECT * FROM users WHERE username = ?', (username,))   # parameterized queries
         user = cursor.fetchone()
         connection.close()
-
         if user:
-            if user[-2] == 'admin':
-                session['user'] = user[-2]
-                session['id'] = user[-3]
-                return redirect('/admin')
-            else:
-                session['user'] = user[-2]
-                session['id'] = user[-3]
-                return redirect('/feed')
+            hash_pass = user[-1]
+            check = bcrypt.check_password_hash(hash_pass, password)
 
-        else:
-            message = "Login failed!"
-            return render_template_string(open('templates/login.html').read(), message=message)
+            if check:
+                if user[-2] == 'admin':
+                    session['user'] = user[-2]
+                    session['id'] = user[-3]
+                    return redirect('/admin')
+                else:
+                    session['user'] = user[-2]
+                    session['id'] = user[-3]
+                    return redirect('/feed')
+
+            else:
+                message = "Login failed!"
+                return render_template_string(open('templates/login.html').read(), message=message)
     return render_template('login.html')
 
 
@@ -54,19 +61,25 @@ def register():
         password1 = request.form.get('password1')
         password2 = request.form.get('password2')
 
-        cursor.execute("SELECT username FROM users WHERE username = '{}'".format(username))
-        if cursor.fetchone():
-            message = "User is already exist"
-            return render_template_string(open('templates/register.html').read(), message=message)
-        else:
-            if username and password1 == password2:
-                cursor.execute('INSERT INTO users (username, password) VALUES (?, ?)', (username, password1))
-                connection.commit()
+        if username:
+            cursor.execute('SELECT username FROM users WHERE username = ?', (username,))   # parameterized queries
+            user = cursor.fetchone()
+            if user:
+                print(user)
+                message = "User is already exist"
+                return render_template_string(open('templates/register.html').read(), message=message)
+            else:
+                if username and password1 == password2 and (password1 and password2):
+                    hash_pass = bcrypt.generate_password_hash(password1)
 
-            if username == 'admin':
-                return redirect('/admin')
+                    cursor.execute('INSERT INTO users (username, password) VALUES (?, ?)', (username, hash_pass))   # parameterized queries
+                    connection.commit()
+                    connection.close()
+                else:
+                    message = "No password, passwords don't match"
+                    return render_template_string(open('templates/register.html').read(), message=message)
 
-            return redirect('/login')
+                return redirect('/login')
 
     return render_template("register.html")
 
@@ -83,13 +96,13 @@ def main_page():
         data_tuple = message, session['id']
 
         if message:
-            cursor.execute('INSERT INTO blogs (message, user_id) VALUES (?, ?)', (data_tuple))
+            cursor.execute('INSERT INTO blogs (message, user_id) VALUES (?, ?)', (data_tuple))   # parameterized queries
             connection.commit()
 
         delete_id = request.form.get('delete-btn')
 
         if delete_id:
-            cursor.execute("DELETE FROM blogs WHERE id = ('{}')".format(delete_id))
+            cursor.execute('DELETE FROM blogs WHERE id = ?', (delete_id,))   # parameterized queries
             connection.commit()
 
         logout_button = request.form.get('logout-button')
@@ -140,14 +153,15 @@ def profile():
 
         message = request.form.get('message')
         if message:
+            message = html.escape(message)  # escape html tags
             data_tuple = (message, session['id'])
-            cursor.execute('INSERT INTO blogs (message, user_id) VALUES (?, ?)', (data_tuple))
+            cursor.execute('INSERT INTO blogs (message, user_id) VALUES (?, ?)', (data_tuple))   # parameterized queries
             connection.commit()
 
         delete_id = request.form.get('delete-btn')
 
         if delete_id:
-            cursor.execute("DELETE FROM blogs WHERE id = ('{}')".format(delete_id))
+            cursor.execute('DELETE FROM blogs WHERE id = ? and user_id = ?', (delete_id, session['id']))   # parameterized queries and check that post is yours
             connection.commit()
 
         logout_button = request.form.get('logout-button')
@@ -156,7 +170,7 @@ def profile():
             session.pop('user', default=None)
             return redirect('/login')
 
-    cursor.execute("SELECT blogs.id, message, username FROM blogs INNER JOIN users ON blogs.user_id = users.id WHERE users.id = ('{}')".format(session['id']))
+    cursor.execute('SELECT blogs.id, message, username FROM blogs INNER JOIN users ON blogs.user_id = users.id WHERE users.id = ?', (session['id'],))   # parameterized queries
     connection.commit()
     blogs = cursor.fetchall()
     connection.close()
@@ -170,12 +184,34 @@ def change_password():
         connection = sqlite3.connect('demo.db')
         cursor = connection.cursor()
 
+        password_old = request.form.get('password-old')
+
         password1 = request.form.get('password1')
         password2 = request.form.get('password2')
 
-        if password1 == password2:
-            cursor.execute("UPDATE users SET password=('{}') WHERE id=('{}')".format(password1, session['id']))
+        if password_old:
+            cursor.execute('SELECT * FROM users WHERE id = ?', (session['id'],))  # parameterized queries
             connection.commit()
+            user = cursor.fetchone()
+
+            if user:
+                hash_pass = user[-1]
+                check = bcrypt.check_password_hash(hash_pass, password_old)
+                if not check:
+                    message = "Wrong old password"
+                    return render_template_string(open('templates/change-password.html').read(), message=message)
+        else:
+            message = "Empty password"
+            return render_template_string(open('templates/change-password.html').read(), message=message)
+
+        if password1 == password2 and (password1 and password2):
+            hash_pass = bcrypt.generate_password_hash(password1)
+            cursor.execute('UPDATE users SET password=? WHERE id=?', (hash_pass, session['id']))   # parameterized queries
+            connection.commit()
+            connection.close()
+        else:
+            message = "Passwords don't match or empty"
+            return render_template_string(open('templates/change-password.html').read(), message=message)
 
     return render_template("change-password.html")
 
@@ -191,7 +227,7 @@ def manage_users():
     delete_id = request.form.get('delete-btn')
 
     if delete_id:
-        cursor.execute("DELETE FROM users WHERE id = ('{}')".format(delete_id))
+        cursor.execute('DELETE FROM users WHERE id = ?', (delete_id,))   # parameterized queries
         connection.commit()
 
     cursor.execute("SELECT id, username FROM users")
@@ -203,7 +239,6 @@ def manage_users():
 
 @app.route('/change-password-admin', methods=['POST', 'GET'])
 def manage_users_admin():
-    print(session['user'])
     if session['user'] != 'admin':
         abort(403)
 
@@ -217,9 +252,20 @@ def manage_users_admin():
         password1 = request.form.get('password1')
         password2 = request.form.get('password2')
 
-        if password1 == password2:
-            cursor.execute("UPDATE users SET password=('{}') WHERE username=('{}')".format(password1, username))
-            connection.commit()
+        if username:
+            cursor.execute('SELECT username FROM users WHERE username = ?', (username,))   # parameterized queries
+            if not cursor.fetchone():
+                message = "User doesn't exist"
+                return render_template_string(open('templates/admin-change-password.html').read(), message=message)
+            if password1 == password2 and (password1 and password2):
+                hash_pass = bcrypt.generate_password_hash(password1)
+                cursor.execute('UPDATE users SET password=? WHERE username=?', (hash_pass, username))   # parameterized queries
+                connection.commit()
+                connection.close()
+            else:
+                message = "Passwords don't match or empty"
+                return render_template_string(open('templates/change-password.html').read(), message=message)
+
 
     return render_template("admin-change-password.html")
 
@@ -237,10 +283,10 @@ def manage_posts():
         delete_id = request.form.get('delete-btn')
 
         if delete_id:
-            cursor.execute("DELETE FROM blogs WHERE id = ('{}')".format(delete_id))
+            cursor.execute('DELETE FROM blogs WHERE id = ?', (delete_id,))   # parameterized queries
             connection.commit()
 
-    cursor.execute("SELECT blogs.id, message, username FROM blogs INNER JOIN users ON blogs.user_id = users.id")
+    cursor.execute("SELECT blogs.id, message, username FROM blogs INNER JOIN users ON blogs.user_id = users.id")   # parameterized queries
     connection.commit()
     blogs = cursor.fetchall()
     connection.close()
@@ -249,4 +295,4 @@ def manage_posts():
 
 if __name__ == '__main__':
     init_db()
-    app.run(debug=True)
+    app.run()
