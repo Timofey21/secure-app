@@ -25,6 +25,9 @@ def login():
         username = request.form.get('username')
         password = request.form.get('password')
 
+        username = html.escape(username)    # input validation
+        password = html.escape(password)
+
         connection = sqlite3.connect('demo.db')
         cursor = connection.cursor()
         cursor.execute('SELECT * FROM users WHERE username = ?', (username,))   # parameterized queries
@@ -61,11 +64,14 @@ def register():
         password1 = request.form.get('password1')
         password2 = request.form.get('password2')
 
+        username = html.escape(username)    # input validation
+        password1 = html.escape(password1)
+        password2 = html.escape(password2)
+
         if username:
             cursor.execute('SELECT username FROM users WHERE username = ?', (username,))   # parameterized queries
             user = cursor.fetchone()
             if user:
-                print(user)
                 message = "User is already exist"
                 return render_template_string(open('templates/register.html').read(), message=message)
             else:
@@ -91,20 +97,6 @@ def main_page():
     cursor = connection.cursor()
 
     if request.method == 'POST':
-
-        message = request.form.get('message')
-        data_tuple = message, session['id']
-
-        if message:
-            cursor.execute('INSERT INTO blogs (message, user_id) VALUES (?, ?)', (data_tuple))   # parameterized queries
-            connection.commit()
-
-        delete_id = request.form.get('delete-btn')
-
-        if delete_id:
-            cursor.execute('DELETE FROM blogs WHERE id = ?', (delete_id,))   # parameterized queries
-            connection.commit()
-
         logout_button = request.form.get('logout-button')
 
         if logout_button:
@@ -153,7 +145,7 @@ def profile():
 
         message = request.form.get('message')
         if message:
-            message = html.escape(message)  # escape html tags
+            message = html.escape(message)  # input validation
             data_tuple = (message, session['id'])
             cursor.execute('INSERT INTO blogs (message, user_id) VALUES (?, ?)', (data_tuple))   # parameterized queries
             connection.commit()
@@ -265,7 +257,6 @@ def manage_users_admin():
             else:
                 message = "Passwords don't match or empty"
                 return render_template_string(open('templates/change-password.html').read(), message=message)
-
 
     return render_template("admin-change-password.html")
 
