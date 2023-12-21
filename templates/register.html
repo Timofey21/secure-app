@@ -9,6 +9,7 @@
   <body>
     <div class="container mt-5">
         <form action="/register" method="POST">
+         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
           <div class="form-group">
             <label for="exampleInputEmail1">Username</label>
             <input type="text" class="form-control w-25" id="exampleInputEmail1" aria-describedby="emailHelp" placeholder="Enter username" name="username">

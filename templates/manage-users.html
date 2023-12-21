@@ -15,9 +15,11 @@
                   <div class="card-body">
                       <div class="d-flex p-5">{{ item[1] | safe }}</div>
                             <form action="/manage-users" method="post">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                 <button type="submit" class="btn btn-danger btn-sm" name="delete-btn" value={{ item[0] }}>Delete user</button>
                             </form>
                             <form action="/change-password-admin" method="post" class="">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                 <button type="submit" class="btn btn-info btn-sm" name="uid" value={{ item[0] }}>Update password</button>
                             </form>
                   </div>

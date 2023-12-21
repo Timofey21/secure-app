@@ -14,6 +14,7 @@
       <a class="btn btn-info" href="/profile" role="button">Profile</a>
       <a class="btn btn-primary" href="/feed" role="button">Feed</a>
       <form action="/" method="post">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
          <button type="submit" class="btn btn-primary mb-5" name="logout-button" value="1">Logout</button>
      </form>
   </div>

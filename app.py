@@ -2,6 +2,7 @@ import os
 import sqlite3
 from dotenv import load_dotenv
 from pydoc import html
+from flask_wtf.csrf import CSRFProtect
 
 from flask import Flask, render_template, render_template_string, request, redirect, session, abort
 from flask_bcrypt import Bcrypt
@@ -12,8 +13,12 @@ app = Flask(__name__)
 bcrypt = Bcrypt(app)
 
 load_dotenv()
-app.secret_key = os.getenv("SECRET")
+app.secret_key = os.getenv("SECRET")    # secret securely stored in .env file (it's not stored in the git repository)
 
+csrf = CSRFProtect()
+csrf.WTF_CSRF_SECRET_KEY = os.getenv("CSRF")    # secret for CSRF token
+
+csrf.init_app(app)  # init CSRF token protection
 
 
 @app.before_request
