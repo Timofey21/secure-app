@@ -1,4 +1,6 @@
+import os
 import sqlite3
+from dotenv import load_dotenv
 from pydoc import html
 
 from flask import Flask, render_template, render_template_string, request, redirect, session, abort
@@ -9,7 +11,9 @@ app = Flask(__name__)
 
 bcrypt = Bcrypt(app)
 
-app.secret_key = 'aebeiz7eiyi?tooj5sheijai0dize2Xeicai0ais6xaef5pai3'
+load_dotenv()
+app.secret_key = os.getenv("SECRET")
+
 
 
 @app.before_request
