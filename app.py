@@ -25,6 +25,7 @@ csrf.init_app(app)  # init CSRF token protection
 # secure session cookie config
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=30)
+app.config['SESSION_COOKIE_SAMESITE'] = 'Strict'
 
 
 @app.before_request
