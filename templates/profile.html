@@ -21,6 +21,7 @@
                       <p>{{ item[2] | safe }}</p>
                       <div class="d-flex p-5">{{ item[1] | safe }}</div>
                             <form action="/profile" method="post">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                         <button type="submit" class="btn btn-danger btn-sm" name="delete-btn" value={{ item[0] }}>delete</button>
                     </form>
                   </div>
